@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mapa de píldoras · GDevelop</title>
+<style>
+  :root {
+    --bg: #0b0c18; --panel: #12142a; --panel-2: #1a1d3a; --line: #2a2f5a;
+    --fg: #f6f3ea; --muted: #9aa0d8; --coin: #ffc83d;
+    --z1: #45e0c8; --z2: #ffc83d; --z3: #ff6b9c; --z4: #a596ff; --z5: #78e08f;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background-image: radial-gradient(circle at 1px 1px, #1c1f40 1px, transparent 0); background-size: 28px 28px; }
+  button, input { font: inherit; color: inherit; }
+  :focus-visible { outline: 3px solid var(--coin); outline-offset: 3px; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 28px 16px 80px; }
+
+  /* Cabecera */
+  .eyebrow { font: 700 12px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+  h1 { font-size: clamp(28px, 5vw, 44px); line-height: 1.05; margin: 10px 0 8px; font-weight: 800; letter-spacing: -.01em; }
+  h1 em { font-style: normal; color: var(--coin); }
+  .intro { margin: 0; color: var(--muted); max-width: 56ch; }
+
+  /* Buscador */
+  .tools { position: sticky; top: 0; z-index: 5; margin: 22px -16px 0; padding: 12px 16px; background: rgba(11,12,24,.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+  .search { display: flex; align-items: center; gap: 10px; background: var(--panel); border: 2px solid var(--line); border-radius: 14px; padding: 0 14px; }
+  .search:focus-within { border-color: var(--coin); }
+  .search span { font: 800 20px/1 var(--mono); color: var(--coin); }
+  .search input { flex: 1; min-width: 0; background: none; border: 0; outline: 0; padding: 13px 0; font-size: 17px; }
+  .search input::placeholder { color: #6f75a8; }
+  .search input::-webkit-search-cancel-button { display: none; }
+  .search button { background: none; border: 0; color: var(--muted); cursor: pointer; padding: 6px; font-size: 18px; }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
+  .chip { font: 700 12px/1 var(--mono); letter-spacing: .04em; padding: 8px 11px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer; }
+  .chip[aria-pressed="true"] { background: var(--coin); border-color: var(--coin); color: #12142a; }
+  .count { margin-left: auto; font: 700 12px/1 var(--mono); color: var(--muted); }
+  .count b { color: var(--fg); }
+  .results { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; max-height: 40vh; overflow: auto; }
+  .results:empty { display: none; }
+  .results button { width: 100%; text-align: left; display: flex; gap: 10px; align-items: baseline; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; cursor: pointer; }
+  .results button:hover { border-color: var(--zc); }
+  .results .id { font: 700 12px/1 var(--mono); color: var(--zc); flex: none; }
+  .results .why { color: var(--muted); font-size: 14px; display: block; }
+  .none { margin: 10px 0 0; color: var(--muted); font-size: 15px; }
+
+  /* Zonas */
+  .zone { margin-top: 36px; --zc: var(--z1); }
+  .zone[data-z="2"] { --zc: var(--z2); } .zone[data-z="3"] { --zc: var(--z3); }
+  .zone[data-z="4"] { --zc: var(--z4); } .zone[data-z="5"] { --zc: var(--z5); }
+  .zone-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; padding-bottom: 10px; border-bottom: 2px dashed var(--line); }
+  .zone-tag { font: 800 12px/1 var(--mono); letter-spacing: .12em; color: #12142a; background: var(--zc); padding: 6px 9px; border-radius: 6px; }
+  .zone h2 { margin: 0; font-size: clamp(19px, 3vw, 24px); line-height: 1.2; font-weight: 800; }
+  .zone-note { font: 700 11px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--zc); border: 1.5px dashed var(--zc); padding: 5px 8px; border-radius: 6px; }
+  .zone-count { margin-left: auto; font: 700 12px/1 var(--mono); color: var(--muted); }
+
+  .board { position: relative; margin-top: 22px; display: grid; grid-template-columns: repeat(var(--cols, 4), 1fr); row-gap: 26px; }
+  .board svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+  .board path { fill: none; stroke: var(--zc); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 2 12; opacity: .55; }
+
+  .node { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 0 4px; background: none; border: 0; cursor: pointer; text-align: center; transition: opacity .2s; }
+  .dot { position: relative; width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center; background: var(--panel); border: 3px solid var(--zc); font: 800 17px/1 var(--mono); color: var(--zc); box-shadow: 0 0 0 6px var(--bg); transition: transform .15s; }
+  .node:hover .dot { transform: translateY(-3px) scale(1.06); }
+  .node.seen .dot { background: var(--zc); color: #12142a; }
+  .node.seen .dot::after { content: "✓"; position: absolute; right: -6px; bottom: -6px; width: 22px; height: 22px; border-radius: 50%; background: var(--bg); color: var(--zc); border: 2px solid var(--zc); font: 800 12px/18px var(--mono); }
+  .node.key .dot::before { content: "★"; position: absolute; left: -8px; top: -9px; font-size: 20px; line-height: 1; color: var(--coin); text-shadow: 0 0 0 var(--bg), 0 2px 0 var(--bg); }
+  .node .name { font-size: 13px; line-height: 1.25; font-weight: 600; max-width: 15ch; text-wrap: balance; background: var(--bg); padding: 0 2px; border-radius: 4px; }
+  .node.dim { opacity: .18; }
+  .node.hit .dot { box-shadow: 0 0 0 6px var(--bg), 0 0 0 9px var(--coin); }
+
+  footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+
+  /* Ficha de la píldora */
+  dialog { border: 0; padding: 0; color: var(--fg); background: var(--panel); width: min(440px, 100vw); max-width: none; height: 100dvh; max-height: none; margin: 0 0 0 auto; border-left: 3px solid var(--zc, var(--coin)); overflow: auto; }
+  dialog::backdrop { background: rgba(5,6,14,.72); }
+  .sheet { padding: 16px 18px 28px; display: flex; flex-direction: column; gap: 14px; min-height: 100%; }
+  .sheet-top { display: flex; align-items: center; gap: 10px; }
+  .sheet-top .id { font: 800 13px/1 var(--mono); color: #12142a; background: var(--zc); padding: 6px 8px; border-radius: 6px; }
+  .sheet-top .where { font: 700 11px/1.2 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); flex: 1; }
+  .x { background: var(--panel-2); border: 0; border-radius: 10px; width: 40px; height: 40px; cursor: pointer; font-size: 18px; }
+  .sheet h3 { margin: 0; font-size: 24px; line-height: 1.15; font-weight: 800; }
+  .lema { margin: -6px 0 0; color: var(--muted); }
+  .sheet video { display: block; width: auto; max-width: 100%; height: min(58dvh, 620px); aspect-ratio: 9 / 16; margin: 0 auto; background: #000; border-radius: 14px; }
+  .speed { display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .speed span { font: 700 11px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-right: 4px; }
+  .help { margin: 0; padding: 12px 14px; background: var(--panel-2); border-radius: 12px; }
+  .help b { font: 700 11px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--zc); }
+  .help ul { margin: 6px 0 0; padding-left: 18px; }
+  .acts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: auto; }
+  .btn { padding: 12px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--panel-2); cursor: pointer; font-weight: 700; font-size: 14px; }
+  .btn:disabled { opacity: .35; cursor: default; }
+  .btn.wide { grid-column: 1 / -1; }
+  .btn.on { background: var(--zc); border-color: var(--zc); color: #12142a; }
+  @media (max-width: 520px) { dialog { border-left: 0; border-top: 3px solid var(--zc, var(--coin)); } .sheet video { height: min(52dvh, 560px); } }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow" id="curso"></div>
+    <h1>Mapa de <em>píldoras</em></h1>
+    <p class="intro">Vídeos de menos de un minuto, sin sonido, una idea cada uno. Busca lo que te pasa o elige una parada del mapa.</p>
+  </header>
+
+  <div class="tools">
+    <label class="search">
+      <span aria-hidden="true">?</span>
+      <input id="q" type="search" autocomplete="off" placeholder="¿Qué te pasa? Prueba: marcador, choca, no se mueve…" aria-label="Busca lo que te pasa">
+      <button id="clear" type="button" aria-label="Borrar búsqueda" hidden>✕</button>
+    </label>
+    <div class="row">
+      <button class="chip" data-f="all" aria-pressed="true">Todas</button>
+      <button class="chip" data-f="key" aria-pressed="false">★ Esenciales</button>
+      <button class="chip" data-f="todo" aria-pressed="false">Sin ver</button>
+      <span class="count" id="count"></span>
+    </div>
+    <ul class="results" id="results"></ul>
+    <p class="none" id="none" hidden>No hay ninguna píldora con esas palabras. Prueba con una sola, como «variable» o «cámara».</p>
+  </div>
+
+  <main id="map"></main>
+
+  <footer>Las paradas que marcas como vistas se guardan solo en este navegador. Nadie más las ve.</footer>
+</div>
+
+<dialog id="dlg" aria-labelledby="d-title">
+  <div class="sheet">
+    <div class="sheet-top"><span class="id" id="d-id"></span><span class="where" id="d-where"></span><button class="x" id="d-close" aria-label="Cerrar">✕</button></div>
+    <h3 id="d-title"></h3>
+    <p class="lema" id="d-lema"></p>
+    <video id="d-video" controls playsinline muted preload="metadata"></video>
+    <div class="speed"><span>Velocidad</span>
+      <button class="chip" data-r="0.5" aria-pressed="false">0,5×</button>
+      <button class="chip" data-r="0.75" aria-pressed="false">0,75×</button>
+      <button class="chip" data-r="1" aria-pressed="true">1×</button>
+    </div>
+    <div class="help"><b>Te sirve si…</b><ul id="d-sint"></ul></div>
+    <div class="acts">
+      <button class="btn wide" id="d-seen"></button>
+      <button class="btn" id="d-prev">← Anterior</button>
+      <button class="btn" id="d-next">Siguiente →</button>
+      <button class="btn wide" id="d-link">Copiar enlace a esta píldora</button>
+    </div>
+  </div>
+</dialog>
+
+<script src="pildoras.js"></script>
+<script>
+(() => {
+  const D = window.PILDORAS, $ = (s) => document.querySelector(s);
+  const all = [];
+  D.zonas.forEach((z) => z.pildoras.forEach((p) => { p.zona = z; all.push(p); }));
+  const byId = Object.fromEntries(all.map((p) => [p.id, p]));
+  const norm = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  all.forEach((p) => { p.hay = norm([p.titulo, p.lema, ...p.sintomas].join(' · ')); });
+
+  // Vistas: solo en este navegador
+  const KEY = 'pildoras-vistas';
+  let seen = new Set();
+  try { seen = new Set(JSON.parse(localStorage.getItem(KEY) || '[]')); } catch (e) {}
+  const saveSeen = () => { try { localStorage.setItem(KEY, JSON.stringify([...seen])); } catch (e) {} };
+
+  // Mapa
+  $('#curso').textContent = D.curso;
+  const map = $('#map');
+  D.zonas.forEach((z) => {
+    const sec = document.createElement('section');
+    sec.className = 'zone'; sec.dataset.z = z.id;
+    sec.innerHTML = `<div class="zone-head"><span class="zone-tag">ZONA ${z.id}</span><h2></h2>${z.ampliacion ? '<span class="zone-note">Ampliación</span>' : ''}<span class="zone-count"></span></div>
+      <div class="board"><svg aria-hidden="true"><path/></svg></div>`;
+    sec.querySelector('h2').textContent = z.titulo;
+    const board = sec.querySelector('.board');
+    z.pildoras.forEach((p) => {
+      const b = document.createElement('button');
+      b.className = 'node' + (p.esencial ? ' key' : ''); b.dataset.id = p.id;
+      b.innerHTML = `<span class="dot">${p.n}</span><span class="name"></span>`;
+      b.querySelector('.name').textContent = p.titulo;
+      b.setAttribute('aria-label', `${p.id} ${p.titulo}${p.esencial ? ', esencial' : ''}`);
+      b.addEventListener('click', () => open(p.id));
+      board.appendChild(b); p.el = b;
+    });
+    map.appendChild(sec); z.el = sec;
+  });
+
+  // Camino en zigzag: las filas pares van al revés, como un tablero
+  function layout() {
+    D.zonas.forEach((z) => {
+      const board = z.el.querySelector('.board');
+      const cols = Math.max(3, Math.min(6, Math.floor(board.clientWidth / 150)));
+      board.style.setProperty('--cols', cols);
+      z.pildoras.forEach((p, i) => {
+        const r = Math.floor(i / cols), c = i % cols;
+        p.el.style.gridRow = r + 1;
+        p.el.style.gridColumn = (r % 2 ? cols - c : c + 1);
+      });
+      const bb = board.getBoundingClientRect();
+      const pts = z.pildoras.map((p) => { const d = p.el.querySelector('.dot').getBoundingClientRect(); return [d.left + d.width / 2 - bb.left, d.top + d.height / 2 - bb.top]; });
+      board.querySelector('path').setAttribute('d', pts.map((q, i) => (i ? 'L' : 'M') + q[0].toFixed(1) + ' ' + q[1].toFixed(1)).join(' '));
+    });
+  }
+
+  function paintSeen() {
+    all.forEach((p) => p.el.classList.toggle('seen', seen.has(p.id)));
+    D.zonas.forEach((z) => { z.el.querySelector('.zone-count').textContent = `${z.pildoras.filter((p) => seen.has(p.id)).length}/${z.pildoras.length} vistas`; });
+    $('#count').innerHTML = `<b>${seen.size}</b>/${all.length} vistas`;
+  }
+
+  // Búsqueda y filtros
+  let filter = 'all';
+  function apply() {
+    const words = norm($('#q').value).split(/\s+/).filter((w) => w.length > 1);
+    $('#clear').hidden = !$('#q').value;
+    const res = $('#results'); res.textContent = '';
+    let hits = 0;
+    all.forEach((p) => {
+      const okF = filter === 'all' || (filter === 'key' && p.esencial) || (filter === 'todo' && !seen.has(p.id));
+      const okQ = words.every((w) => p.hay.includes(w));
+      const on = okF && okQ;
+      p.el.classList.toggle('dim', !on);
+      p.el.classList.toggle('hit', on && words.length > 0);
+      if (on && words.length) {
+        hits++;
+        const why = p.sintomas.find((s) => words.some((w) => norm(s).includes(w))) || p.lema;
+        const li = document.createElement('li'), b = document.createElement('button');
+        b.style.setProperty('--zc', `var(--z${p.zona.id})`);
+        b.innerHTML = '<span class="id"></span><span><b></b><span class="why"></span></span>';
+        b.querySelector('.id').textContent = p.id; b.querySelector('b').textContent = p.titulo; b.querySelector('.why').textContent = why;
+        b.addEventListener('click', () => open(p.id));
+        li.appendChild(b); res.appendChild(li);
+      }
+    });
+    $('#none').hidden = !(words.length && hits === 0);
+  }
+  $('#q').addEventListener('input', apply);
+  $('#clear').addEventListener('click', () => { $('#q').value = ''; apply(); $('#q').focus(); });
+  document.querySelectorAll('[data-f]').forEach((c) => c.addEventListener('click', () => {
+    filter = c.dataset.f;
+    document.querySelectorAll('[data-f]').forEach((o) => o.setAttribute('aria-pressed', o === c));
+    apply();
+  }));
+
+  // Ficha
+  const dlg = $('#dlg'), vid = $('#d-video');
+  let cur = null, rate = 1;
+  function open(id, fromHash) {
+    const p = byId[id]; if (!p) return;
+    cur = p;
+    dlg.style.setProperty('--zc', `var(--z${p.zona.id})`);
+    $('#d-id').textContent = p.id;
+    $('#d-where').textContent = `Zona ${p.zona.id} · ${p.zona.titulo}`;
+    $('#d-title').textContent = p.titulo;
+    $('#d-lema').textContent = p.lema;
+    vid.poster = p.portada; vid.src = p.video; vid.playbackRate = rate;
+    const ul = $('#d-sint'); ul.textContent = '';
+    p.sintomas.forEach((s) => { const li = document.createElement('li'); li.textContent = s; ul.appendChild(li); });
+    const i = all.indexOf(p);
+    $('#d-prev').disabled = i === 0; $('#d-next').disabled = i === all.length - 1;
+    $('#d-link').textContent = 'Copiar enlace a esta píldora';
+    paintBtn();
+    if (!dlg.open) dlg.showModal();
+    dlg.scrollTop = 0;
+    if (!fromHash) history.replaceState(null, '', '#' + p.id);
+  }
+  function paintBtn() {
+    const on = seen.has(cur.id), b = $('#d-seen');
+    b.textContent = on ? '✓ Vista (pulsa para desmarcar)' : 'Marcar como vista';
+    b.classList.toggle('on', on);
+  }
+  function mark(on) { on ? seen.add(cur.id) : seen.delete(cur.id); saveSeen(); paintSeen(); paintBtn(); apply(); }
+  vid.addEventListener('ended', () => mark(true));
+  vid.addEventListener('loadedmetadata', () => { vid.playbackRate = rate; });
+  $('#d-seen').addEventListener('click', () => mark(!seen.has(cur.id)));
+  $('#d-prev').addEventListener('click', () => open(all[all.indexOf(cur) - 1].id));
+  $('#d-next').addEventListener('click', () => open(all[all.indexOf(cur) + 1].id));
+  $('#d-close').addEventListener('click', () => dlg.close());
+  dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
+  dlg.addEventListener('close', () => { vid.pause(); vid.removeAttribute('src'); vid.load(); history.replaceState(null, '', location.pathname + location.search); if (cur) cur.el.focus(); });
+  document.querySelectorAll('[data-r]').forEach((c) => c.addEventListener('click', () => {
+    rate = +c.dataset.r; vid.playbackRate = rate;
+    document.querySelectorAll('[data-r]').forEach((o) => o.setAttribute('aria-pressed', o === c));
+  }));
+  $('#d-link').addEventListener('click', async () => {
+    const url = location.href.split('#')[0] + '#' + cur.id;
+    try { await navigator.clipboard.writeText(url); $('#d-link').textContent = '✓ Enlace copiado'; }
+    catch (e) { $('#d-link').textContent = url; }
+  });
+
+  const fromHash = () => { const id = decodeURIComponent(location.hash.slice(1)); if (byId[id]) open(id, true); };
+  window.addEventListener('hashchange', fromHash);
+  window.addEventListener('resize', layout);
+  paintSeen(); layout(); apply(); fromHash();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(layout);
+})();
+</script>
+</body>
+</html>
